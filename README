@@ -1,0 +1,16 @@
+Graph-Edt is a small program that allows you to create a square graph with
+clickable circles.  When these circles are clicked they create an edge to
+adjacent circles.
+
+Dependencies:
+
+python-wxgtk2.8
+python2.7
+
+Run:
+
+python graph-edt
+
+Test:
+
+python -m unittest graph-edt-test
