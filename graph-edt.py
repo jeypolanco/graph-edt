@@ -31,6 +31,7 @@ class MainFrame(wx.Frame):
                 ("&New", "Create a new graph", self.OnNew),
                 ("&Open", "Open a saved graph", self.OnOpen),
                 ("&Save", "Save a graph", self.OnSave),
+                ("&Record", "Record moves", self.OnRecord),
                 ("&Quit", "Quit", self.OnCloseWindow))
 
     def createMenuBar(self):
@@ -47,6 +48,9 @@ class MainFrame(wx.Frame):
             menuItem = menu.Append(-1, eachLabel, eachStatus)
             self.Bind(wx.EVT_MENU, eachHandler, menuItem)
         return menu
+
+    def OnRecord(self, event):
+        pass
 
     def OnSize(self, event):
         """
@@ -181,7 +185,7 @@ class Grid(object):
             for j in range(dimen):
                 circ = self.canvas.AddCircle((i*offset, j*offset), dia,
                                              FillColor="White")
-                circ.pos= (i, j)
+                circ.grid_pos= (i, j)
                 self.circ_dict[(i, j)] = circ
                 circ.Bind(FC.EVT_FC_LEFT_DOWN, self.CircleHitLeft)
 
@@ -214,20 +218,21 @@ class Grid(object):
                         self.grid_edges[(i, j), vert].Show()
         
     def CircleHitLeft(self, circ):
-        """If edge between adjcent vertices is visible, hide it.  Else, show it.
+        """After clicking circle, if edge between adjcent vertices is visible, hide
+           it. Else, show it.
 
         """
-        circ_node = circ.pos
-        for adj in self.graph.get_adj(circ.pos):
-            edge = (adj, circ.pos)
-            if self.grid_edges[adj, circ_node].Visible and self.graph.is_edge(edge):
-                self.graph.del_edge((adj, circ_node))
-                self.grid_edges[adj, circ_node].Hide()
+        for adj in self.graph.get_adj(circ.grid_pos):
+            edge = (adj, circ.grid_pos)
+            if self.grid_edges[edge].Visible and self.graph.is_edge(edge):
+                self.graph.del_edge(edge)
+                self.grid_edges[edge].Hide()
                 
             else:
-                self.graph.add_edge((adj, circ_node))
-                self.grid_edges[adj, circ_node].PutInForeground()
-                self.grid_edges[adj, circ_node].Show()
+                self.graph.add_edge(edge)
+                self.grid_edges[edge].PutInForeground()
+                self.grid_edges[edge].Show()
+
         self.canvas.Draw(True)
 
     def getGraph(self):
@@ -238,6 +243,9 @@ class Grid(object):
         
         self.canvas.ClearAll()
         self.canvas.Draw(True)
+        
+    def recordMove(self):
+        pass
 
 class Graph(object):
     def __init__(self, dimen):
@@ -332,6 +340,23 @@ class Graph(object):
                     self.num_edges -= 1
                 else:
                     return None
+
+class Recorder(object): 
+    """Record circles clicked in order to produce graph solution
+    """
+    def __init__(self):
+        self.moves_lst = []
+        self.num_moves = 0
+
+    def record(self, circ_grid_pos):
+        self.moves_lst.append(circ_grid_pos)
+        self.num_moves += 1
+        
+    def getRecord(self):
+        return self.moves_lst
+        
+    def getMoves(self):
+        return num_moves
     
 def main():
     
