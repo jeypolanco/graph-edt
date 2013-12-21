@@ -18,13 +18,39 @@ class MainFrame(wx.Frame):
         # Add the Canvas
         self.filename = ""
         self.grid = None
-        canvas = FC.FloatCanvas(self, size = (500,500), ProjectionFun = None,
+        self.initpos = 300
+        self.splitter_win = wx.SplitterWindow(self)
+        canvas = FC.FloatCanvas(self.splitter_win, size = (500,500), ProjectionFun = None,
                                 Debug = 0, BackgroundColor = "Purple")
         self.canvas = canvas
         self.canvas.Bind(wx.EVT_SIZE, self.OnSize)
         self.CreateStatusBar()
         self.createMenuBar()
         self.wildcard = "Graph files (*.graph)|*.graph|All files (*.*)|*.*"
+        self.splitter_win.Initialize(self.canvas)
+
+    def createHist(self):
+        hist = wx.ListCtrl(self.splitter_win, -1, style=wx.LC_REPORT)
+        # add columns
+        for col, data in enumerate(self.columnData()):
+            hist.InsertColumn(col, data)
+
+        # add rows
+        if self.rowData() == None:
+            pass
+        else:
+            for item in enumerate(self.rowData()):
+                index = self.hist.InsertStringItem(sys.maxint, item[0])
+                for row, data in enumerate(item[1:]):
+                    self.list.SetStringItem(index, col+1, text)
+        hist.Hide()
+        return hist
+
+    def columnData(self):
+        return ("Move #", "Circle clicked")
+
+    def rowData(self):
+        return self.grid.getHist()
 
     def menuData(self):
         return ("&File",
@@ -148,6 +174,9 @@ class MainFrame(wx.Frame):
                 if graph_dimen <= 20:
                     self.hide()
                     self.grid = Grid(self.canvas, int(dimen))
+                    self.hist = self.createHist()
+                    self.splitter_win.SplitVertically(self.canvas, self.hist,
+                                                      self.initpos)
                 else:
                     wx.StaticText(self.canvas, -1, "Entry > 20.  Try Again!",
                                   (100,70))
@@ -227,17 +256,27 @@ class Grid(object):
             if self.grid_edges[edge].Visible and self.graph.is_edge(edge):
                 self.graph.del_edge(edge)
                 self.grid_edges[edge].Hide()
-                
+                self.updateHist(circ.grid_pos)
             else:
                 self.graph.add_edge(edge)
                 self.grid_edges[edge].PutInForeground()
                 self.grid_edges[edge].Show()
+                self.updateHist(circ.grid_pos)
 
         self.canvas.Draw(True)
+
+    def updateHist(self, circ_grid_pos):
+
+        self.hist_frame.update(circ_grid_pos)
+        self.hist.record(circ_grid_pos)
 
     def getGraph(self):
 
         return self.graph
+
+    def getHist(self):
+
+        pass
 
     def clearAll(self):
         
@@ -345,15 +384,15 @@ class Recorder(object):
     """Record circles clicked in order to produce graph solution
     """
     def __init__(self):
-        self.moves_lst = []
+        self.moves_hist = []
         self.num_moves = 0
 
     def record(self, circ_grid_pos):
-        self.moves_lst.append(circ_grid_pos)
+        self.moves_hist.append(circ_grid_pos)
         self.num_moves += 1
         
-    def getRecord(self):
-        return self.moves_lst
+    def getHist(self):
+        return self.moves_hist
         
     def getMoves(self):
         return num_moves
