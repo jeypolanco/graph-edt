@@ -5,6 +5,7 @@ except ImportError:
     print "Install wx-python2.8"
 import cPickle
 import os
+import sys
 
 """ puzzle.py is a graph editor."""
 
@@ -28,29 +29,6 @@ class MainFrame(wx.Frame):
         self.createMenuBar()
         self.wildcard = "Graph files (*.graph)|*.graph|All files (*.*)|*.*"
         self.splitter_win.Initialize(self.canvas)
-
-    def createHist(self):
-        hist = wx.ListCtrl(self.splitter_win, -1, style=wx.LC_REPORT)
-        # add columns
-        for col, data in enumerate(self.columnData()):
-            hist.InsertColumn(col, data)
-
-        # add rows
-        if self.rowData() == None:
-            pass
-        else:
-            for item in enumerate(self.rowData()):
-                index = self.hist.InsertStringItem(sys.maxint, item[0])
-                for row, data in enumerate(item[1:]):
-                    self.list.SetStringItem(index, col+1, text)
-        hist.Hide()
-        return hist
-
-    def columnData(self):
-        return ("Move #", "Circle clicked")
-
-    def rowData(self):
-        return self.grid.getHist()
 
     def menuData(self):
         return ("&File",
@@ -173,8 +151,8 @@ class MainFrame(wx.Frame):
                 graph_dimen = int(dimen)
                 if graph_dimen <= 20:
                     self.hide()
-                    self.grid = Grid(self.canvas, int(dimen))
-                    self.hist = self.createHist()
+                    self.hist = HistList(self.splitter_win)
+                    self.grid = Grid(self.canvas, self.hist, int(dimen))
                     self.splitter_win.SplitVertically(self.canvas, self.hist,
                                                       self.initpos)
                 else:
@@ -186,9 +164,45 @@ class MainFrame(wx.Frame):
                 self.prompt()
         event.Skip()
 
+class HistList(wx.ListCtrl):
+
+    def __init__(self, parent, move_hist=None):
+        wx.ListCtrl.__init__(self, parent, -1, style=wx.LC_REPORT)
+        self.recorder = Recorder()
+        self.num = 0
+        # add columns
+        for col, data in enumerate(self.columnData()):
+            self.InsertColumn(col, data)
+
+        # add rows
+        if move_hist == None:
+            pass
+        else:
+            for item in enumerate(self.rowData()):
+                index = self.InsertStringItem(sys.maxint, item[0])
+                for row, data in enumerate(item[1:]):
+                    self.SetStringItem(index, col+1, text)
+        self.Hide()
+
+    def columnData(self):
+
+        return ("Move #", "Circle clicked")
+
+    def rowData(self):
+
+        return self.record.getHist()
+    
+    def update(self, circ_grid_pos):
+        
+        self.recorder.record(circ_grid_pos)
+        index = self.InsertStringItem(sys.maxint, str(self.num))
+        self.SetStringItem(index, 1, str(circ_grid_pos))
+        self.num += 1
+
 class Grid(object):
-    def __init__(self, canvas, dimen=None, graph=None):
+    def __init__(self, canvas, hist_frame, dimen=None, graph=None):
         self.canvas = canvas
+        self.hist_frame = hist_frame
         if graph == None:
             self.graph = Graph(dimen)
             self.old_graph = False
@@ -256,19 +270,18 @@ class Grid(object):
             if self.grid_edges[edge].Visible and self.graph.is_edge(edge):
                 self.graph.del_edge(edge)
                 self.grid_edges[edge].Hide()
-                self.updateHist(circ.grid_pos)
             else:
                 self.graph.add_edge(edge)
                 self.grid_edges[edge].PutInForeground()
                 self.grid_edges[edge].Show()
-                self.updateHist(circ.grid_pos)
+
+        self.updateHist(circ.grid_pos)
 
         self.canvas.Draw(True)
 
     def updateHist(self, circ_grid_pos):
 
         self.hist_frame.update(circ_grid_pos)
-        self.hist.record(circ_grid_pos)
 
     def getGraph(self):
 
