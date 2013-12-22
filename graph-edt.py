@@ -6,6 +6,7 @@ except ImportError:
 import cPickle
 import os
 import sys
+import wx.lib.mixins.listctrl
 
 """ puzzle.py is a graph editor."""
 
@@ -167,9 +168,10 @@ class MainFrame(wx.Frame):
 class HistList(wx.ListCtrl):
 
     def __init__(self, parent, move_hist=None):
-        wx.ListCtrl.__init__(self, parent, -1, style=wx.LC_REPORT)
+        wx.ListCtrl.__init__(self, parent, -1, style=wx.LC_REPORT|wx.LC_SORT_DESCENDING)
         self.recorder = Recorder()
         self.num = 0
+        self.itemDataMap = {}
         # add columns
         for col, data in enumerate(self.columnData()):
             self.InsertColumn(col, data)
@@ -195,8 +197,9 @@ class HistList(wx.ListCtrl):
     def update(self, circ_grid_pos):
         
         self.recorder.record(circ_grid_pos)
-        index = self.InsertStringItem(sys.maxint, str(self.num))
+        index = self.InsertStringItem(0, str(self.num))
         self.SetStringItem(index, 1, str(circ_grid_pos))
+
         self.num += 1
 
 class Grid(object):
