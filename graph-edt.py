@@ -3,10 +3,9 @@ try:
     from wx.lib.floatcanvas import FloatCanvas as FC
 except ImportError:
     print "Install wx-python2.8"
-import cPickle
+import shelve
 import os
 import sys
-import wx.lib.mixins.listctrl
 
 """ puzzle.py is a graph editor."""
 
@@ -17,26 +16,28 @@ class MainFrame(wx.Frame):
                  pos=wx.DefaultPosition,
                  title="Graph Editor"):
         wx.Frame.__init__(self, parent, id, title, pos)
-        # Add the Canvas
         self.filename = ""
-        self.grid = None
+
         self.initpos = 300
         self.splitter_win = wx.SplitterWindow(self)
-        canvas = FC.FloatCanvas(self.splitter_win, size = (500,500), ProjectionFun = None,
-                                Debug = 0, BackgroundColor = "Purple")
-        self.canvas = canvas
-        self.canvas.Bind(wx.EVT_SIZE, self.OnSize)
+        
+        # Create panels
+        self.hist_frame = HistList(self.splitter_win)
+        self.grid_frame = Grid(self.splitter_win)
+
+        self.grid_frame.Bind(wx.EVT_SIZE, self.OnSize)
+
         self.CreateStatusBar()
         self.createMenuBar()
+
         self.wildcard = "Graph files (*.graph)|*.graph|All files (*.*)|*.*"
-        self.splitter_win.Initialize(self.canvas)
+        self.splitter_win.Initialize(self.grid_frame)
 
     def menuData(self):
         return ("&File",
                 ("&New", "Create a new graph", self.OnNew),
                 ("&Open", "Open a saved graph", self.OnOpen),
                 ("&Save", "Save a graph", self.OnSave),
-                ("&Record", "Record moves", self.OnRecord),
                 ("&Quit", "Quit", self.OnCloseWindow))
 
     def createMenuBar(self):
@@ -54,52 +55,68 @@ class MainFrame(wx.Frame):
             self.Bind(wx.EVT_MENU, eachHandler, menuItem)
         return menu
 
-    def OnRecord(self, event):
-        pass
-
     def OnSize(self, event):
         """
         re-zooms the canvas to fit the window
 
         """
-        self.canvas.ZoomToBB()
+        self.grid_frame.ZoomToBB()
         event.Skip()
 
     def OnNew(self, event):
-        if self.grid == None:
-            self.prompt()
-            event.Skip()
-        else:
-            self.grid.clearAll()
-            self.grid = None
+        if self.grid_frame.hasGraph():
+            self.splitter_win.Unsplit(self.hist_frame)
+            
+            self.loadNewFrames()
             self.filename = None
+
             self.prompt()
             event.Skip()
+
+        else:
+            self.prompt()
+            event.Skip()
+
+    def loadNewFrames(self, graph=None, hist=None):
+            # Destroy current frames
+            self.grid_frame.Destroy()
+            self.hist_frame.Destroy()
+
+            # Create new frames
+            self.hist_frame = HistList(self.splitter_win, hist)
+            self.grid_frame = Grid(self.splitter_win, graph)
+            self.grid_frame.Bind(wx.EVT_SIZE, self.OnSize)
+            
+            # Initialize panel and make it fit frame
+            self.splitter_win.Initialize(self.grid_frame)
+            self.splitter_win.SizeWindows()
+
+            if graph == None and hist == None:
+                pass
+            else:
+                self.splitter_win.SplitVertically(self.grid_frame,
+                                                  self.hist_frame, self.initpos)
+
 
     def OnCloseWindow(self, event):
         self.Destroy()
 
     def saveFile(self):
         if self.filename:
-            data = self.grid.getGraph()
-            file_buf = open(self.filename, 'w')
-            cPickle.dump(data, file_buf)
+            file_buf = shelve.open(self.filename)
+            file_buf['graph'] = self.grid_frame.getGraph()
+            file_buf['hist'] = self.hist_frame.getHist()
             file_buf.close()
 
     def readFile(self):
-        if self.filename:
-            try:
-                file_buf = open(self.filename, 'r')
-                data = cPickle.load(file_buf)
-                file_buf.close()
-                if self.grid == None:
-                    self.grid = Grid(self.canvas, graph = data)
-                else:
-                    self.grid.clearAll()
-                    self.grid = None
-                    self.grid = Grid(self.canvas, graph = data)
-            except cPickle.UnpicklingError:
-                wx.MessageBox("%s is not a graph file." % self.filename,
+        if os.path.isfile(self.filename):
+            file_buf = shelve.open(self.filename, 'r')
+            graph = file_buf['graph']
+            hist = file_buf['hist']
+            file_buf.close()
+            self.loadNewFrames(graph, hist)
+        else:
+            wx.MessageBox("%s is not a file." % self.filename,
                               "oops!", style=wx.OK|wx.ICON_EXCLAMATION)
 
     def OnOpen(self, event):
@@ -107,11 +124,12 @@ class MainFrame(wx.Frame):
                            style=wx.OPEN, wildcard=self.wildcard)
         if dlg.ShowModal() == wx.ID_OK:
             self.filename = dlg.GetPath()
+        if self.filename:
             self.readFile()
         dlg.Destroy()
 
     def OnSave(self, event):
-        if self.grid != None:
+        if self.grid_frame.hasGraph():
             if not self.filename:
                 self.OnSaveAs(event)
             else:
@@ -120,11 +138,10 @@ class MainFrame(wx.Frame):
             wx.MessageBox("A graph has not been loaded.",
                           "oops!", style=wx.OK|wx.ICON_EXCLAMATION)
 
-
     def OnSaveAs(self, event):
         dlg = wx.FileDialog(self, "Save graph as...", os.getcwd(),
-                           style=wx.SAVE | wx.OVERWRITE_PROMPT,
-                           wildcard = self.wildcard)
+                            style=wx.SAVE | wx.OVERWRITE_PROMPT,
+                            wildcard = self.wildcard)
         if dlg.ShowModal() == wx.ID_OK:
             filename = dlg.GetPath()
             if not os.path.splitext(filename)[1]:
@@ -134,14 +151,14 @@ class MainFrame(wx.Frame):
         dlg.Destroy()
 
     def prompt(self):
-        wx.StaticText(self.canvas, -1, 
+        wx.StaticText(self.grid_frame, -1, 
                       "Enter dimension of square graph that is < 20.", (100,10))
-        self.txt = wx.TextCtrl(self.canvas, -1, "", (100,30))
+        self.txt = wx.TextCtrl(self.grid_frame, -1, "", (100,30))
         self.txt.SetFocus()
         self.txt.Bind(wx.EVT_KEY_DOWN, self.OnTextCtrl, self.txt)
 
     def hide(self):
-        for child in self.canvas.GetChildren():
+        for child in self.grid_frame.GetChildren():
             child.Hide()
 
     def OnTextCtrl(self, event):
@@ -152,15 +169,17 @@ class MainFrame(wx.Frame):
                 graph_dimen = int(dimen)
                 if graph_dimen <= 20:
                     self.hide()
-                    self.hist = HistList(self.splitter_win)
-                    self.grid = Grid(self.canvas, self.hist, int(dimen))
-                    self.splitter_win.SplitVertically(self.canvas, self.hist,
+                    self.grid_frame.setHistFrame(self.hist_frame)
+                    self.grid_frame.setGraphDim(graph_dimen)
+                    self.grid_frame.drawGraph()
+
+                    self.splitter_win.SplitVertically(self.grid_frame, self.hist_frame,
                                                       self.initpos)
                 else:
-                    wx.StaticText(self.canvas, -1, "Entry > 20.  Try Again!",
+                    wx.StaticText(self.grid_frame, -1, "Entry > 20.  Try Again!",
                                   (100,70))
             else:
-                wx.StaticText(self.canvas, -1, "Entry wasn't a digit, Retry!",
+                wx.StaticText(self.grid_frame, -1, "Entry wasn't a digit, Retry!",
                               (100,70))
                 self.prompt()
         event.Skip()
@@ -168,8 +187,11 @@ class MainFrame(wx.Frame):
 class HistList(wx.ListCtrl):
 
     def __init__(self, parent, move_hist=None):
-        wx.ListCtrl.__init__(self, parent, -1, style=wx.LC_REPORT|wx.LC_SORT_DESCENDING)
-        self.recorder = Recorder()
+        wx.ListCtrl.__init__(self, parent, -1, style=wx.LC_REPORT)
+        if move_hist == None:
+            self.move_hist = Recorder()
+        else:
+            self.move_hist = move_hist
         self.num = 0
         self.itemDataMap = {}
         # add columns
@@ -181,9 +203,9 @@ class HistList(wx.ListCtrl):
             pass
         else:
             for item in enumerate(self.rowData()):
-                index = self.InsertStringItem(sys.maxint, item[0])
+                index = self.InsertStringItem(0, str(item[0]))
                 for row, data in enumerate(item[1:]):
-                    self.SetStringItem(index, col+1, text)
+                    self.SetStringItem(index, 1, str(data)) 
         self.Hide()
 
     def columnData(self):
@@ -192,44 +214,45 @@ class HistList(wx.ListCtrl):
 
     def rowData(self):
 
-        return self.record.getHist()
+        return self.move_hist.getHist()
     
     def update(self, circ_grid_pos):
         
-        self.recorder.record(circ_grid_pos)
+        self.move_hist.record(circ_grid_pos)
         index = self.InsertStringItem(0, str(self.num))
         self.SetStringItem(index, 1, str(circ_grid_pos))
 
         self.num += 1
 
-class Grid(object):
-    def __init__(self, canvas, hist_frame, dimen=None, graph=None):
-        self.canvas = canvas
-        self.hist_frame = hist_frame
-        if graph == None:
-            self.graph = Graph(dimen)
-            self.old_graph = False
-        else:
-            self.graph = graph
-            self.old_graph = True
+    def getHist(self):
+
+        return self.move_hist
+
+class Grid(FC.FloatCanvas):
+    def __init__(self, parent, graph=None):
+        FC.FloatCanvas.__init__(self, parent, BackgroundColor = "Purple")
+        self.hist_frame = None
+        self.graph = graph
         self.grid_edges = {}
         self.circ_dict = {}
-        self.drawGraph()
+        if self.graph == None:
+            self.dimen = 0
+        else:
+            self.dimen = self.graph.get_graph_dimen()
+            self.drawGraph()
 
     def drawGraph(self):
-        dimen = self.graph.get_graph_dimen()
-        self.drawCircles(dimen)
-        self.drawLines(dimen)
-        if self.old_graph:
-            self.showEdges(dimen)
-        self.canvas.ZoomToBB()
+        self.drawCircles(self.dimen)
+        self.drawLines(self.dimen)
+        self.showEdges(self.dimen)
+        self.ZoomToBB()
 
     def drawCircles(self, dimen):
         dia = 8
         offset = 10
         for i in range(dimen):
             for j in range(dimen):
-                circ = self.canvas.AddCircle((i*offset, j*offset), dia,
+                circ = self.AddCircle((i*offset, j*offset), dia,
                                              FillColor="White")
                 circ.grid_pos= (i, j)
                 self.circ_dict[(i, j)] = circ
@@ -245,7 +268,7 @@ class Grid(object):
                              self.circ_dict[vert].XY[1])
                     pos_2 = (self.circ_dict[(i, j)].XY[0], 
                              self.circ_dict[(i, j)].XY[1])
-                    line = self.canvas.AddLine([(pos_1), (pos_2)],
+                    line = self.AddLine([(pos_1), (pos_2)],
                                                LineColor="Red")
                     self.grid_edges[vert, (i, j)] = line
                     self.grid_edges[(i, j), vert] = line
@@ -280,28 +303,41 @@ class Grid(object):
 
         self.updateHist(circ.grid_pos)
 
-        self.canvas.Draw(True)
+        self.Draw(True)
 
     def updateHist(self, circ_grid_pos):
 
         self.hist_frame.update(circ_grid_pos)
 
+    def setGraphDim(self, graph_dimen):
+
+        self.dimen = graph_dimen
+        self.graph = Graph(self.dimen)
+
     def getGraph(self):
 
         return self.graph
 
-    def getHist(self):
-
-        pass
+    def setGraph(self, graph):
+    
+        self.graph = graph
 
     def clearAll(self):
         
-        self.canvas.ClearAll()
-        self.canvas.Draw(True)
-        
-    def recordMove(self):
-        pass
+        self.ClearAll()
+        self.Draw(True)
 
+    def setHistFrame(self, hist_frame):
+
+        self.hist_frame = hist_frame
+
+    def hasGraph(self):
+
+        if not self.graph == None:
+            return True
+        else:
+            return False
+        
 class Graph(object):
     def __init__(self, dimen):
         """Create a vert-vertex graph with no edges """
