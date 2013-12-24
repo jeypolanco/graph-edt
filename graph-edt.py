@@ -27,7 +27,8 @@ class MainFrame(wx.Frame):
 
         self.grid_frame.Bind(wx.EVT_SIZE, self.OnSize)
 
-        self.CreateStatusBar()
+        status_bar = self.CreateStatusBar()
+        self.splitter_win.parent = status_bar 
         self.createMenuBar()
 
         self.wildcard = "Graph files (*.graph)|*.graph|All files (*.*)|*.*"
@@ -234,6 +235,7 @@ class HistList(wx.ListCtrl):
 class Grid(FC.FloatCanvas):
     def __init__(self, parent, graph=None, hist_frame = None):
         FC.FloatCanvas.__init__(self, parent, BackgroundColor = "Purple")
+        self.parent = parent
         self.hist_frame = hist_frame
         self.graph = graph
         self.grid_edges = {}
@@ -260,6 +262,8 @@ class Grid(FC.FloatCanvas):
                 circ.grid_pos= (i, j)
                 self.circ_dict[(i, j)] = circ
                 circ.Bind(FC.EVT_FC_LEFT_DOWN, self.CircleHitLeft)
+                circ.Bind(FC.EVT_FC_ENTER_OBJECT, self.OnEnterCircle)
+                circ.Bind(FC.EVT_FC_LEAVE_OBJECT, self.OnLeaveCircle)
 
     def drawLines(self, dimen):
         for i in range(dimen):
@@ -307,6 +311,12 @@ class Grid(FC.FloatCanvas):
         self.updateHist(circ.grid_pos)
 
         self.Draw(True)
+        
+    def OnEnterCircle(self, circ):
+        self.parent.parent.SetStatusText("(%s, %s)"  % circ.grid_pos)
+
+    def OnLeaveCircle(self, circ):
+        self.parent.parent.SetStatusText("")
 
     def updateHist(self, circ_grid_pos):
 
