@@ -84,7 +84,7 @@ class MainFrame(wx.Frame):
 
             # Create new frames
             self.hist_frame = HistList(self.splitter_win, hist)
-            self.grid_frame = Grid(self.splitter_win, graph)
+            self.grid_frame = Grid(self.splitter_win, graph, self.hist_frame)
             self.grid_frame.Bind(wx.EVT_SIZE, self.OnSize)
             
             # Initialize panel and make it fit frame
@@ -190,9 +190,12 @@ class HistList(wx.ListCtrl):
         wx.ListCtrl.__init__(self, parent, -1, style=wx.LC_REPORT)
         if move_hist == None:
             self.move_hist = Recorder()
+            self.num = 0
+
         else:
             self.move_hist = move_hist
-        self.num = 0
+            self.num = self.move_hist.getMoves()
+
         self.itemDataMap = {}
         # add columns
         for col, data in enumerate(self.columnData()):
@@ -229,9 +232,9 @@ class HistList(wx.ListCtrl):
         return self.move_hist
 
 class Grid(FC.FloatCanvas):
-    def __init__(self, parent, graph=None):
+    def __init__(self, parent, graph=None, hist_frame = None):
         FC.FloatCanvas.__init__(self, parent, BackgroundColor = "Purple")
-        self.hist_frame = None
+        self.hist_frame = hist_frame
         self.graph = graph
         self.grid_edges = {}
         self.circ_dict = {}
@@ -447,7 +450,7 @@ class Recorder(object):
         return self.moves_hist
         
     def getMoves(self):
-        return num_moves
+        return self.num_moves
     
 def main():
     
