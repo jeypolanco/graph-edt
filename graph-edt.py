@@ -65,6 +65,8 @@ class MainFrame(wx.Frame):
         event.Skip()
 
     def OnNew(self, event):
+        """ Event called when the new label in the file menu is clicked.
+        """
         if self.grid_frame.hasGraph():
             self.splitter_win.Unsplit(self.hist_frame)
             
@@ -79,26 +81,28 @@ class MainFrame(wx.Frame):
             event.Skip()
 
     def loadNewFrames(self, graph=None, hist=None):
-            # Destroy current frames
-            self.grid_frame.Destroy()
-            self.hist_frame.Destroy()
+        """ Creates and loads new history and grid frames.
+        """
+        # Destroy current frames
+        self.grid_frame.Destroy()
+        self.hist_frame.Destroy()
 
-            # Create new frames
-            self.hist_frame = HistList(self.splitter_win, hist)
-            self.grid_frame = Grid(self.splitter_win, graph, self.hist_frame)
-            self.grid_frame.Bind(wx.EVT_SIZE, self.OnSize)
+        # Create new frames
+        self.hist_frame = HistList(self.splitter_win, hist)
+        self.grid_frame = Grid(self.splitter_win, graph, self.hist_frame)
+        self.grid_frame.Bind(wx.EVT_SIZE, self.OnSize)
             
-            # Initialize panel and make it fit frame
-            self.splitter_win.Initialize(self.grid_frame)
-            self.splitter_win.SizeWindows()
+        # Initialize panel and make it fit frame
+        self.splitter_win.Initialize(self.grid_frame)
+        self.splitter_win.SizeWindows()
 
-            if graph == None and hist == None:
-                pass
-            else:
-                self.splitter_win.SplitVertically(self.grid_frame,
-                                                  self.hist_frame, self.initpos)
-
-
+        if graph == None and hist == None:
+            pass
+        else:
+            self.splitter_win.SplitVertically(self.grid_frame,
+                                              self.hist_frame, self.initpos)
+            
+            
     def OnCloseWindow(self, event):
         self.Destroy()
 
@@ -152,6 +156,8 @@ class MainFrame(wx.Frame):
         dlg.Destroy()
 
     def prompt(self):
+        """ Prompts user for the size of the graph.
+        """
         wx.StaticText(self.grid_frame, -1, 
                       "Enter dimension of square graph that is < 20.", (100,10))
         self.txt = wx.TextCtrl(self.grid_frame, -1, "", (100,30))
@@ -159,10 +165,14 @@ class MainFrame(wx.Frame):
         self.txt.Bind(wx.EVT_KEY_DOWN, self.OnTextCtrl, self.txt)
 
     def hide(self):
+        """ Hides widgets related to the prompt window.
+        """
         for child in self.grid_frame.GetChildren():
             child.Hide()
 
     def OnTextCtrl(self, event):
+        """ Event called when user is finished entering the size of graph.
+        """
         keycode = event.GetKeyCode()
         dimen = self.txt.GetValue()
         if keycode == wx.WXK_RETURN:
@@ -186,7 +196,10 @@ class MainFrame(wx.Frame):
         event.Skip()
 
 class HistList(wx.ListCtrl):
+    """Class shows the number of moves (ie clicks) the user makes in the course
+    manipulating the graph.
 
+    """
     def __init__(self, parent, move_hist=None):
         wx.ListCtrl.__init__(self, parent, -1, style=wx.LC_REPORT)
         if move_hist == None:
@@ -217,10 +230,16 @@ class HistList(wx.ListCtrl):
         return ("Move #", "Circle clicked")
 
     def rowData(self):
+        """This function is used for saving the data structure that histlist is based
+        on
+
+        """
 
         return self.move_hist.getHist()
     
     def update(self, circ_grid_pos):
+        """ Updates both the history frame and it's representative data structure
+        """
         
         self.move_hist.record(circ_grid_pos)
         index = self.InsertStringItem(0, str(self.num))
@@ -229,10 +248,14 @@ class HistList(wx.ListCtrl):
         self.num += 1
 
     def getHist(self):
+        """ Returns the data structure that stores the history
+        """
 
         return self.move_hist
 
 class Grid(FC.FloatCanvas):
+    """  Frame responsible for drawing the graph.
+    """
     def __init__(self, parent, graph=None, hist_frame = None):
         FC.FloatCanvas.__init__(self, parent, BackgroundColor = "Purple")
         self.parent = parent
@@ -313,12 +336,21 @@ class Grid(FC.FloatCanvas):
         self.Draw(True)
         
     def OnEnterCircle(self, circ):
+        """ Event that shows the position of the circle in the status bar
+        """
         self.parent.parent.SetStatusText("(%s, %s)"  % circ.grid_pos)
 
     def OnLeaveCircle(self, circ):
+        """Event removes the position of the circle that we've just left in the status
+        bar
+
+        """
+
         self.parent.parent.SetStatusText("")
 
     def updateHist(self, circ_grid_pos):
+        """ Updates the history frame whenever a circle is clicked
+        """
 
         self.hist_frame.update(circ_grid_pos)
 
@@ -334,11 +366,6 @@ class Grid(FC.FloatCanvas):
     def setGraph(self, graph):
     
         self.graph = graph
-
-    def clearAll(self):
-        
-        self.ClearAll()
-        self.Draw(True)
 
     def setHistFrame(self, hist_frame):
 
@@ -394,18 +421,7 @@ class Graph(object):
                 return True
             else:
                 return False
-    def get_edges(self):
-        """Return the edges dict
-
-        """
-        return self.edge_set
     
-    def get_num_edges(self):
-        """Return number of unique edges 
-
-        """
-        return self.num_edges
-
     def are_adj(self, vert_a, vert_b):
         """Return true if vert_a and vert_b are adjacent and therefore possible to
         connect

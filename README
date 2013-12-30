@@ -7,6 +7,8 @@ Dependencies:
 python-wxgtk2.8
 python2.7
 
+Has only been tested on Debian7.0
+
 Run:
 
 python graph-edt
@@ -14,3 +16,11 @@ python graph-edt
 Test:
 
 python -m unittest graph-edt-test
+
+TODO:
+
+Destory child widgets instead of hiding them.
+
+The problem is that the static text disappears everytime I resize the window.
+
+Change the code to make it more readable and less hacky.
