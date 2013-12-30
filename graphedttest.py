@@ -17,7 +17,7 @@ class TestGraph(unittest.TestCase):
         self.dimen = 4
         self.graph = graphedt.Graph(self.dimen)
 
-    def test_get_num_vertices(self):
+    def test_getNumVertices(self):
         # return number of vertices
         self.num_vert = 16
         self.assertEqual(self.num_vert, self.graph.getGraphDimen()**2)
@@ -30,7 +30,7 @@ class TestGraph(unittest.TestCase):
         self.graph.addEdge((vert_a, vert_b))
         self.assertEqual(num_edges, self.graph.getNumEdges())
 
-    def test_get_edges(self):
+    def test_getEdges(self):
         # return number of edges
         vert_a = (0, 0)
         vert_b = (0, 1)
